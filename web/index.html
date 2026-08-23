@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chronos Mesh Operations</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; background: #f4f6f8; color: #18212b; }
+    body { margin: 0; }
+    header { background: #102a43; color: white; padding: 28px clamp(20px, 6vw, 88px); }
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; opacity: .75; }
+    h1 { margin: 8px 0 0; font-size: clamp(28px, 4vw, 48px); }
+    .toolbar { display: flex; gap: 12px; align-items: center; margin: 0 0 22px; }
+    button { border: 0; border-radius: 6px; background: #1976d2; color: white; padding: 10px 16px; cursor: pointer; font-weight: 700; }
+    button:hover { background: #125ca1; }
+    #updated { color: #5f6b76; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    section { background: white; border: 1px solid #d9e2ec; border-radius: 6px; padding: 18px; min-height: 130px; }
+    section h2 { margin: 0 0 14px; font-size: 15px; color: #52606d; }
+    .value { font-size: 25px; font-weight: 750; word-break: break-word; }
+    .ok { color: #167d3d; }
+    .warn { color: #b54708; }
+    pre { margin: 0; white-space: pre-wrap; font: 13px ui-monospace, SFMono-Regular, monospace; color: #334e68; }
+    @media (max-width: 560px) { header { padding: 24px 20px; } .toolbar { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <header><div class="eyebrow">Chronos Mesh</div><h1>Operations Console</h1></header>
+  <main>
+    <div class="toolbar"><button id="refresh" type="button">Refresh status</button><span id="updated">Waiting for first read</span></div>
+    <div class="grid">
+      <section><h2>Service health</h2><div id="health" class="value">Loading...</div></section>
+      <section><h2>Logical time</h2><pre id="time">Loading...</pre></section>
+      <section><h2>Source set</h2><pre id="sources">Loading...</pre></section>
+      <section><h2>Leap table</h2><pre id="leap">Loading...</pre></section>
+    </div>
+  </main>
+  <script>
+    const read = async path => { const response = await fetch(path); if (!response.ok) throw new Error(`${path}: ${response.status}`); return response.json(); };
+    const render = async () => {
+      const stamp = new Date().toLocaleTimeString();
+      try {
+        const [health, time, sources, leap] = await Promise.all([read('/healthz'), read('/v1/time'), read('/v1/sources'), read('/v1/leap')]);
+        document.querySelector('#health').textContent = health.status === 'ok' ? 'Healthy' : health.status;
+        document.querySelector('#health').className = `value ${health.status === 'ok' ? 'ok' : 'warn'}`;
+        document.querySelector('#time').textContent = `now: ${time.now}\nstratum: ${time.stratum}\nsynchronized: ${time.synchronized}\nreference: ${time.reference}`;
+        document.querySelector('#sources').textContent = JSON.stringify(sources, null, 2);
+        document.querySelector('#leap').textContent = `version: ${leap.version}\nexpires: ${leap.expires}\nentries: ${leap.entries.length}`;
+        document.querySelector('#updated').textContent = `Updated ${stamp}`;
+      } catch (error) { document.querySelector('#health').textContent = error.message; document.querySelector('#health').className = 'value warn'; document.querySelector('#updated').textContent = `Read failed at ${stamp}`; }
+    };
+    document.querySelector('#refresh').addEventListener('click', render);
+    render();
+  </script>
+</body>
+</html>
