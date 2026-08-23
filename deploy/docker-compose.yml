@@ -1,0 +1,5 @@
+services:
+  chronos-mesh:
+    build: ..
+    command: ["/chronos-mesh", "-config", "/configs/config.yaml"]
+    ports: ["8080:8080", "8123:8123/udp", "8443:8443"]
