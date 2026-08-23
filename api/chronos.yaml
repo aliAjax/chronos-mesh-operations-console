@@ -1,0 +1,9 @@
+openapi: 3.0.3
+info:
+  title: Chronos Mesh Control API
+  version: 1.0.0
+paths:
+  /healthz: {get: {responses: {"200": {description: healthy}}}}
+  /readyz: {get: {responses: {"200": {description: ready}, "503": {description: not-ready}}}}
+  /v1/time: {get: {responses: {"200": {description: logical time snapshot}}}}
+  /v1/sources: {get: {responses: {"200": {description: upstream diagnostics}}}}
