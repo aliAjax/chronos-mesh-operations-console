@@ -1,0 +1,11 @@
+http_addr: ":18085"
+ntp_addr: ":18123"
+nts_addr: ":18443"
+min_stratum: 2
+holdover: 1h
+cookie_key: "chronos-development-cookie-key-32-bytes"
+rate_per_second: 100
+sources:
+  - {name: primary, address: "127.0.0.1:9123"}
+  - {name: secondary, address: "127.0.0.1:9124"}
+  - {name: faulty, address: "127.0.0.1:9125", offset_ms: 5000}
