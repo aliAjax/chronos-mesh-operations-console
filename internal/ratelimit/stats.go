@@ -7,8 +7,10 @@ type Stats struct {
 	Denied  atomic.Uint64
 }
 
+// Snapshot returns the cumulative allowed and denied counters without
+// resetting them. It is safe for concurrent callers (e.g. /metrics and the
+// operations panel polling together); the previous Swap(0) implementation
+// destroyed counts on read, so a poll could observe swapped/zero values.
 func (s *Stats) Snapshot() (uint64, uint64) {
-	allowed := s.Allowed.Swap(0)
-	denied := s.Denied.Swap(0)
-	return allowed, denied
+	return s.Allowed.Load(), s.Denied.Load()
 }

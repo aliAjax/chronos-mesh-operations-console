@@ -56,7 +56,8 @@ func (s *Server) leap(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) metrics(w http.ResponseWriter, r *http.Request) {
 	st := s.Model.State()
-	fmt.Fprintf(w, "# TYPE chronos_synchronized gauge\nchronos_synchronized %d\nchronos_stratum %d\nchronos_uncertainty_seconds %f\n", boolInt(st.Synchronized), st.Stratum, st.Uncertainty.Seconds())
+	allowed, denied := s.Limit.Snapshot()
+	fmt.Fprintf(w, "# TYPE chronos_synchronized gauge\nchronos_synchronized %d\nchronos_stratum %d\nchronos_uncertainty_seconds %f\n# TYPE chronos_ratelimit_allowed_total counter\nchronos_ratelimit_allowed_total %d\n# TYPE chronos_ratelimit_denied_total counter\nchronos_ratelimit_denied_total %d\n", boolInt(st.Synchronized), st.Stratum, st.Uncertainty.Seconds(), allowed, denied)
 }
 func boolInt(v bool) int {
 	if v {
@@ -66,11 +67,15 @@ func boolInt(v bool) int {
 }
 func Run(ctx context.Context, s *Server) error {
 	h := &http.Server{Addr: s.Addr, Handler: s.Handler(), ReadHeaderTimeout: 3 * time.Second, IdleTimeout: 30 * time.Second}
+	shutdownDone := make(chan struct{})
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		h.Shutdown(shutdownCtx)
+		_ = h.Shutdown(shutdownCtx)
+		cancel()
+		close(shutdownDone)
 	}()
-	return h.ListenAndServe()
+	err := h.ListenAndServe()
+	<-shutdownDone
+	return err
 }

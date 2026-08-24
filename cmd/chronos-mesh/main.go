@@ -57,6 +57,19 @@ func main() {
 	leap := &leapsecond.Table{}
 	leap.Load(1, time.Now().Add(24*time.Hour), []leapsecond.Entry{})
 	udp := ntp.NewServer(cfg.NTPAddr, model, log)
+	limiter := ratelimit.New(cfg.RatePerSecond)
+	go func() {
+		t := time.NewTicker(time.Minute)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				limiter.Prune(5 * time.Minute)
+			}
+		}
+	}()
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -65,7 +78,7 @@ func main() {
 			log.Error("ntp stopped", "error", e)
 		}
 	}()
-	ctl := &control.Server{Addr: cfg.HTTPAddr, Model: model, Sources: mgr, Leap: leap, Limit: ratelimit.New(cfg.RatePerSecond), Started: time.Now()}
+	ctl := &control.Server{Addr: cfg.HTTPAddr, Model: model, Sources: mgr, Leap: leap, Limit: limiter, Started: time.Now()}
 	go func() {
 		defer wg.Done()
 		if e := control.Run(ctx, ctl); e != nil && ctx.Err() == nil {

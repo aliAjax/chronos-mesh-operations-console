@@ -7,9 +7,6 @@ import (
 
 func (l *Limiter) Prune(maxAge time.Duration) {
 	l.mu.Lock()
-	if len(l.items) == 0 {
-		return
-	}
 	defer l.mu.Unlock()
 	now := time.Now()
 	for k, b := range l.items {

@@ -15,6 +15,7 @@ type Limiter struct {
 	rate  float64
 	burst float64
 	items map[string]bucket
+	Stats
 }
 
 func New(rate int) *Limiter {
@@ -24,6 +25,7 @@ func (l *Limiter) Allow(ip net.IP) bool {
 	key := ip.String()
 	now := time.Now()
 	l.mu.Lock()
+	defer l.mu.Unlock()
 	b := l.items[key]
 	if b.last.IsZero() {
 		b.last = now
@@ -35,10 +37,11 @@ func (l *Limiter) Allow(ip net.IP) bool {
 	}
 	b.last = now
 	if b.tokens < 1 {
+		l.Denied.Add(1)
 		return false
 	}
 	b.tokens--
 	l.items[key] = b
-	l.mu.Unlock()
+	l.Allowed.Add(1)
 	return true
 }

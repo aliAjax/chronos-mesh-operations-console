@@ -58,5 +58,5 @@ func (u *UDP) Run(ctx context.Context) {
 		}
 	}
 }
-func (u *UDP) Close()    { u.wg.Wait(); _ = u.Conn.Close() }
+func (u *UDP) Close()    { _ = u.Conn.Close(); u.wg.Wait() }
 func timeNow() time.Time { return time.Now().Add(time.Second) }
