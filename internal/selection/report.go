@@ -15,7 +15,7 @@ func Report(d Decision) string {
 	return b.String()
 }
 func Accepted(d Decision) []source.Sample {
-	o := d.Sources[:0]
+	o := make([]source.Sample, 0, len(d.Sources))
 	for _, s := range d.Sources {
 		if s.Accepted {
 			o = append(o, s)

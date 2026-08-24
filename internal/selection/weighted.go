@@ -10,11 +10,8 @@ type Weight struct {
 	Value float64
 }
 
-var weightScratch []Weight
-
 func Weights(samples []source.Sample) []Weight {
-	weightScratch = weightScratch[:0]
-	o := weightScratch
+	o := make([]Weight, 0, len(samples))
 	for _, s := range samples {
 		d := s.Delay
 		if d <= 0 {
@@ -22,7 +19,6 @@ func Weights(samples []source.Sample) []Weight {
 		}
 		o = append(o, Weight{Name: s.Name, Value: 1 / d.Seconds()})
 	}
-	weightScratch = o
 	return o
 }
 func WeightedOffset(samples []source.Sample) time.Duration {

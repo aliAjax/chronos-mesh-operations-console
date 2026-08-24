@@ -14,7 +14,8 @@ type Decision struct {
 }
 
 func Select(in []source.Sample) Decision {
-	c := in
+	c := make([]source.Sample, len(in))
+	copy(c, in)
 	sort.Slice(c, func(i, j int) bool { return c[i].Offset < c[j].Offset })
 	valid := make([]source.Sample, 0, len(c))
 	for _, s := range c {

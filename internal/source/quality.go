@@ -10,9 +10,12 @@ func MedianOffset(samples []Sample) time.Duration {
 	if len(samples) == 0 {
 		return 0
 	}
-	x := samples
-	sort.Slice(x, func(i, j int) bool { return x[i].Offset < x[j].Offset })
-	return x[len(x)/2].Offset
+	offs := make([]time.Duration, len(samples))
+	for i, s := range samples {
+		offs[i] = s.Offset
+	}
+	sort.Slice(offs, func(i, j int) bool { return offs[i] < offs[j] })
+	return offs[len(offs)/2]
 }
 func Jitter(samples []Sample, center time.Duration) time.Duration {
 	if len(samples) == 0 {
