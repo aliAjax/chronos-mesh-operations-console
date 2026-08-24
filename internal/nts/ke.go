@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -17,11 +18,26 @@ type KEServer struct {
 	Addr            string
 	CertPEM, KeyPEM []byte
 	OnConn          func(net.Conn)
+	mu              sync.RWMutex
 	handler         func(net.Conn)
 }
 
-func (s *KEServer) SetHandler(h func(net.Conn)) { s.handler = h }
-func (s *KEServer) Handler() func(net.Conn)     { return s.handler }
+// SetHandler hot-swaps the connection handler. Safe to call concurrently with
+// Handler and Start.
+func (s *KEServer) SetHandler(h func(net.Conn)) {
+	s.mu.Lock()
+	s.handler = h
+	s.mu.Unlock()
+}
+
+// Handler returns a consistent snapshot of the current handler. The returned
+// func is independent of later SetHandler swaps, so callers may invoke it
+// without racing a concurrent hot-swap.
+func (s *KEServer) Handler() func(net.Conn) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.handler
+}
 
 func SelfSigned() ([]byte, []byte, error) {
 	k, e := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -56,7 +72,14 @@ func (s *KEServer) Start(ctx context.Context) error {
 			}
 		}
 		if s.OnConn != nil {
-			s.OnConn(c)
+			s.mu.RLock()
+			on := s.OnConn
+			s.mu.RUnlock()
+			if on != nil {
+				on(c)
+			} else {
+				c.Close()
+			}
 		} else {
 			c.Close()
 		}

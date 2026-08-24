@@ -15,27 +15,39 @@ type Replay struct {
 func NewReplay(max int, ttl time.Duration) *Replay {
 	return &Replay{seen: map[string]time.Time{}, max: max, ttl: ttl}
 }
+
+// Accept atomically checks whether id has been seen and, if not, records it.
+// The check and the insert run under a single critical section so that two
+// concurrent calls with the same id cannot both pass (which would let a
+// duplicated nonce through).
 func (r *Replay) Accept(id string, now time.Time) bool {
 	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Evict expired entries before deciding so the window reflects reality.
 	for k, t := range r.seen {
 		if now.Sub(t) > r.ttl {
 			delete(r.seen, k)
 		}
 	}
+
 	if _, ok := r.seen[id]; ok {
-		r.mu.Unlock()
 		return false
 	}
-	r.mu.Unlock()
-	time.Sleep(time.Microsecond)
-	r.mu.Lock()
+
+	// Bound the table: drop one expired-or-oldest entry when full.
 	if len(r.seen) >= r.max {
-		for k := range r.seen {
-			delete(r.seen, k)
-			break
+		var oldestK string
+		var oldestT time.Time
+		first := true
+		for k, t := range r.seen {
+			if first || t.Before(oldestT) {
+				oldestK, oldestT, first = k, t, false
+			}
 		}
+		delete(r.seen, oldestK)
 	}
+
 	r.seen[id] = now
-	r.mu.Unlock()
 	return true
 }
